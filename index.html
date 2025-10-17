@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PisoWiFi Dashboard</title>
+  <style>
+    :root{
+      --bg:#f3f6fb;
+      --panel:#fff;
+      --accent:#0b74ff;
+      --accent-2:#0066d6;
+      --muted:#6b7280;
+      --success:#2eb85c;
+      --danger:#ff4c4c;
+      --radius:12px;
+      --shadow:0 12px 30px rgba(8,20,40,0.06);
+      --gap:12px;
+      --max-w:1100px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter, system-ui, Arial, sans-serif;
+      background:linear-gradient(180deg,var(--bg),#eaf2ff 200%);
+      color:#0f1724;
+      -webkit-font-smoothing:antialiased;
+      padding:20px;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+    }
+
+    .app{ width:100%; max-width:var(--max-w); }
+
+    /* Logo/details container (constrained to body) */
+    .header-block{ display:flex; justify-content:center; margin-bottom:12px; }
+    .brand-card{
+      width:100%; max-width:980px;
+      display:flex; align-items:center; gap:16px;
+      padding:14px; background:var(--panel);
+      border-radius:12px; box-shadow:var(--shadow);
+    }
+    .brand{ display:flex; gap:12px; align-items:center; }
+    .logo{
+      width:56px; height:56px; border-radius:12px;
+      background:linear-gradient(135deg,var(--accent),var(--accent-2));
+      color:white; display:flex; align-items:center; justify-content:center; font-weight:700;
+      box-shadow:0 8px 20px rgba(11,116,255,0.12); font-size:18px;
+    }
+    .brand h1{ margin:0; font-size:20px }
+    .brand p{ margin:0; color:var(--muted); font-size:13px }
+
+    /* Actions under logo, constrained to same width */
+    .actions-block{ display:flex; justify-content:center; margin:10px 0 18px 0; }
+    .actions-card{
+      width:100%; max-width:980px;
+      padding:12px; border-radius:12px;
+      background:linear-gradient(180deg,#fff,#fbfdff);
+      box-shadow:0 6px 18px rgba(8,20,40,0.03);
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+    }
+
+    .btn{
+      background:linear-gradient(180deg,var(--accent),var(--accent-2));
+      color:white; border:none; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:600;
+      box-shadow:0 8px 20px rgba(11,116,255,0.12);
+    }
+    .btn.secondary{ background:#f3f6fb; color:var(--muted); border:1px solid #e6eefb; box-shadow:none }
+    .btn.ghost{ background:transparent; color:var(--accent); border:1px solid rgba(11,116,255,0.12); box-shadow:none }
+
+    .controls{ display:flex; gap:10px; margin:12px 0; flex-wrap:wrap; align-items:center }
+    select,input[type="file"],input[type="text"],input[type="date"],input[type="number"]{
+      padding:10px; border-radius:10px; border:1px solid #e6eefb; font-size:14px; background:white;
+    }
+
+    .table-wrap{ background:var(--panel); border-radius:12px; padding:14px; box-shadow:var(--shadow); }
+    table{ width:100%; border-collapse:collapse; font-size:14px; }
+    thead th{ text-align:left; padding:12px; background:linear-gradient(90deg,#f6fbff,#eef7ff); border-bottom:1px solid #eef3fb; }
+    tbody td{ padding:12px; border-bottom:1px dashed #f0f6fb; vertical-align:middle }
+    tbody tr:hover{ background:linear-gradient(90deg, rgba(11,116,255,0.02), rgba(11,116,255,0.01)); }
+    .row-name{ color:var(--accent); font-weight:700; cursor:pointer; text-decoration:none; }
+
+    .chart-wrap{ margin-top:16px; padding:8px; }
+
+    .totals-box{
+      margin-top:14px; display:flex; gap:12px; align-items:center; justify-content:space-between;
+      background:linear-gradient(180deg,#fff,#fbfdff); padding:12px; border-radius:12px;
+      box-shadow:0 10px 30px rgba(8,20,40,0.04);
+    }
+    .totals-box .big{ font-weight:700; font-size:16px }
+    .muted{ color:var(--muted); font-size:13px }
+
+    /* Modals */
+    .modal{ display:none; position:fixed; inset:0; background:rgba(3,10,25,0.45); align-items:center; justify-content:center; padding:16px; z-index:1000; }
+    .modal.show{ display:flex; }
+    .modal-card{ width:100%; max-width:680px; background:var(--panel); border-radius:12px; padding:16px; box-shadow:var(--shadow); max-height:92vh; overflow:auto; }
+    .modal-grid{ display:grid; gap:10px; grid-template-columns:1fr 1fr; }
+    .modal-grid .full{ grid-column:1/-1; }
+    @media (max-width:780px){
+      .modal-grid{ grid-template-columns:1fr }
+      .controls>*{ min-width:100% }
+      .brand-card, .actions-card{ padding:12px }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+
+    <!-- Logo + details container -->
+    <div class="header-block">
+      <div class="brand-card">
+        <div class="brand">
+          <div class="logo">PW</div>
+          <div>
+            <h1>PisoWiFi Dashboard</h1>
+            <p class="muted">Track vendo income • monthly totals • export / import</p>
+          </div>
+        </div>
+        <div style="margin-left:auto" class="muted">Tip: Click vendo name to view details</div>
+      </div>
+    </div>
+
+    <!-- Buttons below logo -->
+    <div class="actions-block">
+      <div class="actions-card">
+        <button class="btn" onclick="openAddVendo()">➕ Add Vendo</button>
+        <button class="btn" onclick="exportData()">📤 Export</button>
+
+        <label style="margin:0">
+          <input id="fileImport" type="file" accept=".json" style="display:none" onchange="importData(event)">
+          <button class="btn secondary" type="button" onclick="document.getElementById('fileImport').click()">⬆️ Import</button>
+        </label>
+
+        <button class="btn ghost" onclick="openFilterModal()">🔎 Filters</button>
+        <button class="btn secondary" onclick="signOut()">🚪 Sign out</button>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <select id="filterLocation" onchange="renderVendoTable()">
+        <option value="">All Locations</option>
+      </select>
+
+      <select id="filterRemark" onchange="renderVendoTable()">
+        <option value="">All Remarks</option>
+        <option value="15th">15th</option>
+        <option value="28th">28th</option>
+      </select>
+
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <div class="muted">Year</div>
+        <select id="yearSelect" onchange="updateYearlyTotal()"></select>
+      </div>
+    </div>
+
+    <!-- Table + Chart -->
+    <div class="table-wrap card">
+      <table>
+        <thead>
+          <tr><th>Vendo</th><th>Location</th><th>Monthly Total (₱)</th></tr>
+        </thead>
+        <tbody id="vendoTableBody"></tbody>
+      </table>
+
+      <div class="chart-wrap">
+        <canvas id="incomeChart" height="220"></canvas>
+      </div>
+    </div>
+
+    <div class="totals-box">
+      <div>
+        <div class="big" id="monthlyTotal">Monthly Total: ₱0.00</div>
+        <div class="muted" id="yearlyTotal">Yearly Total: ₱0.00</div>
+      </div>
+      <div class="muted">Quick: open a vendo to see monthly breakdown</div>
+    </div>
+  </div>
+
+  <!-- Add Vendo Modal -->
+  <div id="addVendoModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <h3>Add Vendo</h3>
+      <div class="modal-grid">
+        <div class="full"><input id="vendoName" type="text" placeholder="Vendo name"></div>
+        <div><input id="vendoLocation" type="text" placeholder="Location"></div>
+        <div><input id="vendoDate" type="date"></div>
+        <div class="full" style="display:flex;justify-content:flex-end">
+          <button class="btn secondary" onclick="closeAddVendo()">Cancel</button>
+          <button class="btn" style="margin-left:8px" onclick="saveVendo()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vendo Details Modal -->
+  <div id="vendoModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <div style="display:flex;gap:12px;align-items:center">
+        <div>
+          <h3 id="vendoModalTitle">Vendo</h3>
+          <div id="vendoModalMeta" class="muted"></div>
+        </div>
+        <div style="margin-left:auto">
+          <button class="btn secondary" onclick="closeVendoModal()">Close</button>
+        </div>
+      </div>
+
+      <hr style="margin:12px 0">
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <input id="incomeDate" type="date" style="flex:1">
+        <input id="incomeAmount" type="number" placeholder="Amount" style="width:160px">
+        <button class="btn" onclick="addIncome()">Add</button>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label class="muted">From<input id="filterFrom" type="date" style="margin-left:6px"></label>
+        <label class="muted">To<input id="filterTo" type="date" style="margin-left:6px"></label>
+        <button class="btn secondary" onclick="filterIncome()" style="margin-left:auto">Filter</button>
+        <button class="btn secondary" onclick="resetVendoFilters()" title="Reset filters">Reset</button>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div class="muted">Monthly Sales (this month): <strong id="vendoMonthlyTotal">₱0.00</strong></div>
+        <div class="muted">All-time Total: <strong id="vendoAllTimeTotal">₱0.00</strong></div>
+      </div>
+
+      <div style="margin-top:12px">
+        <table>
+          <thead><tr><th>Date</th><th style="width:140px">Amount (₱)</th></tr></thead>
+          <tbody id="incomeTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters Modal -->
+  <div id="filterModal" class="modal" aria-hidden="true">
+    <div class="modal-card">
+      <h3>Filters</h3>
+      <div class="modal-grid">
+        <div>
+          <label class="muted">Location</label>
+          <select id="filterLocationModal"></select>
+        </div>
+        <div>
+          <label class="muted">Remark</label>
+          <select id="filterRemarkModal">
+            <option value="">All</option><option value="15th">15th</option><option value="28th">28th</option>
+          </select>
+        </div>
+        <div class="full" style="display:flex;justify-content:flex-end">
+          <button class="btn secondary" onclick="resetFilters()">Reset</button>
+          <button class="btn" style="margin-left:8px" onclick="applyFilters()">Apply</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Data
+    let vendoList = [];
+    let vendoRecords = {}; // { name: [ {date:'YYYY-MM-DD', amount: number, remark?:string}, ... ] }
+    let currentVendo = null;
+
+    // Login / session (simple)
+    function signOut(){ localStorage.removeItem('pwLogged'); location.reload(); }
+
+    // Add Vendo
+    function openAddVendo(){ document.getElementById('addVendoModal').classList.add('show'); }
+    function closeAddVendo(){ document.getElementById('addVendoModal').classList.remove('show'); }
+    function saveVendo(){
+      const name = document.getElementById('vendoName').value.trim();
+      const location = document.getElementById('vendoLocation').value.trim();
+      const date = document.getElementById('vendoDate').value;
+      if(!name || !location || !date){ alert('Complete all fields'); return; }
+      if(!vendoList.find(v=>v.name===name)){
+        vendoList.push({name,location,created:date});
+        vendoRecords[name] = [];
+        saveLocalData(); updateFiltersOptions(); renderVendoTable(); closeAddVendo();
+        document.getElementById('vendoName').value=''; document.getElementById('vendoLocation').value=''; document.getElementById('vendoDate').value='';
+      } else alert('Vendo name already exists');
+    }
+
+    // Render table
+    function renderVendoTable(){
+      const tbody = document.getElementById('vendoTableBody'); tbody.innerHTML='';
+      const locFilter = document.getElementById('filterLocation').value;
+      const remFilter = document.getElementById('filterRemark').value;
+      const thisMonth = new Date().getMonth(); const thisYear = new Date().getFullYear();
+
+      const rows = vendoList
+        .filter(v=>!locFilter || v.location === locFilter)
+        .filter(v=>{ if(!remFilter) return true; const recs = vendoRecords[v.name]||[]; return recs.some(r=>r.remark===remFilter); });
+
+      rows.forEach(v=>{
+        const recs = vendoRecords[v.name] || [];
+        const monthly = recs.filter(r=>{ const d=new Date(r.date); return d.getMonth()===thisMonth && d.getFullYear()===thisYear; }).reduce((s,r)=>s+r.amount,0);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><a class="row-name" onclick="openVendoModal('${escapeHtml(v.name)}')">${escapeHtml(v.name)}</a></td><td>${escapeHtml(v.location)}</td><td>₱${monthly.toFixed(2)}</td>`;
+        tbody.appendChild(tr);
+      });
+      renderIncomeChart(); updateMonthlyTotal(); updateYearlyTotal();
+    }
+
+    // Vendo modal
+    function openVendoModal(name){
+      currentVendo = name;
+      const v = vendoList.find(x=>x.name===name);
+      document.getElementById('vendoModalTitle').textContent = name;
+      document.getElementById('vendoModalMeta').textContent = v ? `${v.location} · created ${v.created}` : '';
+      document.getElementById('filterFrom').value=''; document.getElementById('filterTo').value='';
+      populateVendoDetails();
+      document.getElementById('vendoModal').classList.add('show');
+    }
+    function closeVendoModal(){ document.getElementById('vendoModal').classList.remove('show'); currentVendo=null; }
+
+    function populateVendoDetails(){
+      const recs = (vendoRecords[currentVendo] || []).slice().sort((a,b)=>b.date.localeCompare(a.date));
+      renderIncomeRows(recs);
+      const monthlyTotal = calcMonthlyTotalForVendo(recs);
+      const allTime = recs.reduce((s,r)=>s+r.amount,0);
+      document.getElementById('vendoMonthlyTotal').textContent = `₱${monthlyTotal.toFixed(2)}`;
+      document.getElementById('vendoAllTimeTotal').textContent = `₱${allTime.toFixed(2)}`;
+    }
+
+    function addIncome(){
+      if(!currentVendo){ alert('Select a vendo'); return; }
+      const date = document.getElementById('incomeDate').value;
+      const amount = parseFloat(document.getElementById('incomeAmount').value);
+      if(!date || !amount || isNaN(amount)){ alert('Enter valid date and amount'); return; }
+      vendoRecords[currentVendo] = vendoRecords[currentVendo] || [];
+      vendoRecords[currentVendo].push({date, amount});
+      saveLocalData(); populateVendoDetails(); renderVendoTable();
+      document.getElementById('incomeDate').value=''; document.getElementById('incomeAmount').value='';
+    }
+
+    function renderIncomeRows(data){
+      const tbody = document.getElementById('incomeTableBody'); tbody.innerHTML='';
+      (data||[]).forEach(r=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${r.date}</td><td>₱${r.amount.toFixed(2)}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function calcMonthlyTotalForVendo(recs){
+      const now = new Date();
+      return (recs||[]).reduce((s,r)=>{
+        const d = new Date(r.date);
+        if(d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear()) return s + r.amount;
+        return s;
+      },0);
+    }
+
+    function filterIncome(){
+      if(!currentVendo) return;
+      const from = document.getElementById('filterFrom').value;
+      const to = document.getElementById('filterTo').value;
+      let recs = (vendoRecords[currentVendo]||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+      if(from) recs = recs.filter(r=> r.date >= from);
+      if(to) recs = recs.filter(r=> r.date <= to);
+      renderIncomeRows(recs);
+      const total = recs.reduce((s,r)=>s+r.amount,0);
+      document.getElementById('vendoMonthlyTotal').textContent = `₱${total.toFixed(2)}`;
+    }
+
+    function resetVendoFilters(){
+      document.getElementById('filterFrom').value=''; document.getElementById('filterTo').value='';
+      populateVendoDetails(); renderVendoTable(); updateMonthlyTotal(); updateYearlyTotal();
+    }
+
+    // Filters modal
+    function openFilterModal(){ updateFiltersOptions(); document.getElementById('filterModal').classList.add('show'); }
+    function applyFilters(){
+      document.getElementById('filterLocation').value = document.getElementById('filterLocationModal').value;
+      document.getElementById('filterRemark').value = document.getElementById('filterRemarkModal').value;
+      renderVendoTable();
+      document.getElementById('filterModal').classList.remove('show');
+    }
+    function resetFilters(){ document.getElementById('filterLocationModal').value=''; document.getElementById('filterRemarkModal').value=''; }
+
+    function updateFiltersOptions(){
+      const select = document.getElementById('filterLocation');
+      const selectm = document.getElementById('filterLocationModal');
+      if(!select || !selectm) return;
+      select.innerHTML = '<option value="">All Locations</option>';
+      selectm.innerHTML = '<option value="">All Locations</option>';
+      const locations = [...new Set(vendoList.map(v=>v.location))].sort();
+      locations.forEach(l=>{
+        const o = document.createElement('option'); o.value=l; o.textContent=l;
+        select.appendChild(o); selectm.appendChild(o.cloneNode(true));
+      });
+    }
+
+    // Persistence / import-export
+    function saveLocalData(){ localStorage.setItem('pisowifiData', JSON.stringify({vendoList, vendoRecords})); }
+    function loadLocalData(){
+      const s = localStorage.getItem('pisowifiData');
+      if(!s) return;
+      try{ const d = JSON.parse(s); vendoList = d.vendoList || []; vendoRecords = d.vendoRecords || {}; }catch(e){ console.warn('bad data', e) }
+    }
+    function exportData(){
+      const data = JSON.stringify({vendoList, vendoRecords}, null, 2);
+      const blob = new Blob([data], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'pisowifi-records.json';
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
+    function importData(e){
+      const f = e.target.files && e.target.files[0]; if(!f) return;
+      const r = new FileReader();
+      r.onload = function(ev){
+        try{
+          const data = JSON.parse(ev.target.result);
+          if(!data.vendoList || !data.vendoRecords){ alert('Invalid file'); return; }
+          vendoList = data.vendoList; vendoRecords = data.vendoRecords;
+          saveLocalData(); updateFiltersOptions(); renderVendoTable(); updateMonthlyTotal(); updateYearlyTotal();
+          alert('Import successful');
+        }catch(err){ alert('Invalid JSON file'); }
+      };
+      r.readAsText(f); e.target.value='';
+    }
+
+    // Totals & chart
+    function updateMonthlyTotal(){
+      const now = new Date(); const month = now.getMonth(); const year = now.getFullYear();
+      let total = 0;
+      Object.values(vendoRecords).forEach(recs=> recs.forEach(r=>{
+        const d = new Date(r.date); if(d.getMonth()===month && d.getFullYear()===year) total += r.amount;
+      }));
+      document.getElementById('monthlyTotal').textContent = `Monthly Total: ₱${total.toFixed(2)}`;
+    }
+    function populateYearOptions(){
+      const sel = document.getElementById('yearSelect'); const cy = new Date().getFullYear(); sel.innerHTML='';
+      for(let y=cy; y>=cy-5; y--){ const o=document.createElement('option'); o.value=y; o.textContent=y; sel.appendChild(o); } sel.value=cy;
+    }
+    function updateYearlyTotal(){
+      const selected = parseInt(document.getElementById('yearSelect').value);
+      let total = 0; Object.values(vendoRecords).forEach(recs=>recs.forEach(r=>{ const d=new Date(r.date); if(d.getFullYear()===selected) total += r.amount; }));
+      document.getElementById('yearlyTotal').textContent = `Yearly Total: ₱${total.toFixed(2)}`;
+    }
+
+    // Chart
+    let chartInstance = null;
+    function renderIncomeChart(){
+      const ctx = document.getElementById('incomeChart').getContext('2d');
+      const labels = vendoList.map(v=>v.name);
+      const data = vendoList.map(v => (vendoRecords[v.name]||[]).reduce((s,r)=>s+r.amount,0));
+      if(chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(ctx, {
+        type:'bar',
+        data:{ labels, datasets:[{ label:'Income', data, backgroundColor:labels.map((_,i)=>`hsl(${(i*45)%360} 70% 55%)`) }] },
+        options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true } } }
+      });
+    }
+
+    // Utils
+    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+    // Init
+    (function init(){
+      loadLocalData();
+      updateFiltersOptions();
+      renderVendoTable();
+      populateYearOptions();
+      updateMonthlyTotal();
+      updateYearlyTotal();
+    })();
+  </script>
+</body>
+</html>
